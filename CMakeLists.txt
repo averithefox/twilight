@@ -1,0 +1,44 @@
+cmake_minimum_required(VERSION 3.25..4.0)
+project(twilight LANGUAGES CXX)
+
+set(CMAKE_CXX_COMPILER "/usr/bin/clang++")
+
+set(CMAKE_CXX_STANDARD 23)
+set(CMAKE_CXX_STANDARD_REQUIRED TRUE)
+set(CMAKE_CXX_EXTENSIONS FALSE)
+set(CMAKE_EXPORT_COMPILE_COMMANDS TRUE)
+
+set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE TRUE)
+
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -march=native -Wall -Wextra -Wpedantic -Werror")
+set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -O0 -g3 -ggdb3 -gdwarf-5")
+set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O3 -DNDEBUG")
+
+if(NOT CMAKE_BUILD_TYPE)
+  set(CMAKE_BUILD_TYPE Debug CACHE STRING "" FORCE)
+endif()
+
+find_package(Git REQUIRED)
+find_package(OpenSSL REQUIRED)
+find_package(ZLIB REQUIRED)
+find_package(Git REQUIRED)
+
+execute_process(
+  COMMAND git rev-parse --short HEAD
+  OUTPUT_VARIABLE VERSION
+  OUTPUT_STRIP_TRAILING_WHITESPACE
+)
+
+add_compile_definitions("VERSION=\"${VERSION}\"")
+
+file(GLOB_RECURSE SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cc")
+add_library(${PROJECT_NAME} SHARED ${SOURCES})
+
+set_target_properties(${PROJECT_NAME} PROPERTIES ENABLE_EXPORTS 1)
+target_link_libraries(${PROJECT_NAME} PRIVATE OpenSSL::SSL ZLIB::ZLIB brotlidec brotlicommon)
+target_include_directories(${PROJECT_NAME} PRIVATE
+  "${CMAKE_CURRENT_SOURCE_DIR}/include/twilight"
+  ${OPENSSL_INCLUDE_DIR}
+)
+
+set(TWILIGHT_INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/include" PARENT_SCOPE)
