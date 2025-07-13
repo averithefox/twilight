@@ -1,0 +1,6 @@
+Completion:
+  AllScopes: Yes
+
+CompileFlags:
+  Add: [-xc++, -std=c++23]
+  Compiler: clang++
