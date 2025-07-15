@@ -3,19 +3,12 @@
 #include <functional>
 #include <future>
 
-#include "../http/client.h"
-#include "../uri.h"
 #include "frame.h"
+#include "http/client.h"
+#include "uri.h"
 
 namespace twilight::ws
 {
-enum class Event : u8 { Open, Close, Message };
-
-template <Event E>
-struct __WSListenerType {
-  using type = std::conditional_t<E == Event::Message, void(const Frame&), void()>;
-};
-
 class Client : protected http::Client
 {
  private:
@@ -43,7 +36,7 @@ class Client : protected http::Client
   };
 
  public:
-  explicit Client(const URI& uri, bool connect = true);
+  explicit Client(const URI& uri, http::ClientFlags flags = http::ClientFlags::None);
 
   Client(const Client&) = delete;
   Client& operator=(const Client&) = delete;

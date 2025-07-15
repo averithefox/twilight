@@ -4,17 +4,17 @@
 #include <netdb.h>
 
 #include "utils/base64.h"
+#include "utils/bitwise.h"
 #include "utils/random.h"
 #include "utils/sha1.h"
 #include "ws/frame.h"
 
 namespace twilight::ws
 {
-Client::Client(const URI& uri, bool connect)
-    : http::Client(uri, connect ? http::ClientFlags::None : http::ClientFlags::NoConnect), key(rand<u8, 16>())
+Client::Client(const URI& uri, http::ClientFlags flags) : http::Client(uri, flags), key(rand<u8, 16>())
 {
-  if (connect)
-    this->connect();
+  if (!(flags & http::ClientFlags::NoConnect))
+    connect();
 }
 
 bool Client::send(const char* str) const noexcept { return send({.opcode = Opcode::Text, .payload = str}); }

@@ -3,7 +3,7 @@
 #include <expected>
 #include <string>
 
-#include "../utils/types.h"
+#include "utils/types.h"
 #include "headers.h"
 
 namespace twilight::http

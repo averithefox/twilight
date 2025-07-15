@@ -6,8 +6,8 @@
 
 #include <atomic>
 
-#include "../uri.h"
 #include "response.h"
+#include "uri.h"
 
 namespace twilight::http
 {

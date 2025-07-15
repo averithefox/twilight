@@ -2,7 +2,7 @@
 
 #include <string>
 
-#include "../utils/types.h"
+#include "utils/types.h"
 
 namespace twilight::ws
 {
