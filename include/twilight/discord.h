@@ -4,6 +4,7 @@ namespace twilight
 {
 // https://discord.com/developers/docs/events/gateway#list-of-intents
 enum class Intent : int {
+  None = 0,
   GUILDS = 1 << 0,
   GUILD_MEMBERS = 1 << 1,
   GUILD_MODERATION = 1 << 2,
@@ -30,6 +31,6 @@ enum class Intent : int {
 class Discord
 {
  public:
-  Discord(int intents = 0) noexcept;
+  Discord(Intent intents = Intent::None) noexcept;
 };
 }  // namespace twilight

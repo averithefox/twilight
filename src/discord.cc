@@ -2,5 +2,5 @@
 
 namespace twilight
 {
-Discord::Discord(int) noexcept {}
+Discord::Discord(Intent) noexcept {}
 }  // namespace twilight

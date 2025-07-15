@@ -7,23 +7,31 @@
 #include <format>
 #include <memory>
 #include <mutex>
+#include <type_traits>
 
 #include "http/headers.h"
+#include "utils/bitwise.h"
 
 static constexpr const char* HTTP_VER = "HTTP/1.1";
 static constexpr const char* USER_AGENT = "twilight/" VERSION;
 
+static constexpr u8 MAX_REDIRECTS = 16;
+
 namespace twilight::http
 {
-Client::Client(const URI& uri) : uri(uri)
+Client::Client(const URI& uri, ClientFlags flags) : uri(uri), flags(flags)
 {
   static std::once_flag sslInit;
   std::call_once(sslInit, [] { OPENSSL_init_ssl(0, nullptr); });
-  connect();
+  if (!(flags & ClientFlags::NoConnect))
+    this->connect();
 }
 
 void Client::connect()
 {
+  if (connected)
+    return;
+
   // DNS
   addrinfo hints{};
   hints.ai_socktype = SOCK_STREAM;
@@ -64,6 +72,8 @@ void Client::connect()
       throw std::runtime_error("SSL_connect failed");
     }
   }
+
+  connected = true;
 }
 
 isize Client::recv(char* buf, usize len) const noexcept
@@ -149,7 +159,7 @@ std::string Client::recvAll() const noexcept
   return data;
 }
 
-Response Client::request(const std::string& path, RequestInit opts) const
+Response Client::request(const std::string& path, RequestInit opts)
 {
   std::string hostHdr = uri.host;
   if ((uri.port != 80 && uri.port != 443))
@@ -174,6 +184,20 @@ Response Client::request(const std::string& path, RequestInit opts) const
   auto res = Response::parse(raw);
   if (!res.has_value())
     throw std::runtime_error("Failed to parse response: " + res.error());
+
+  if (static_cast<std::underlying_type_t<ClientFlags>>(flags & ClientFlags::NoFollow) || res->statusCode < 300 ||
+      res->statusCode >= 400)
+    return *res;
+
+  std::remove_const_t<decltype(MAX_REDIRECTS)> redirects = 0;
+  while (res->statusCode >= 300 && res->statusCode < 400) {
+    std::string loc = res->headers.get("Location").value_or("");
+    if (loc.empty())
+      break;
+    if (++redirects > MAX_REDIRECTS)
+      throw std::runtime_error("Too many redirects");
+    res = request(loc, std::move(opts));
+  }
   return *res;
 }
 

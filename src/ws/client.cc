@@ -10,14 +10,12 @@
 
 namespace twilight::ws
 {
-Client::Client(const URI& uri) : http::Client(uri), key(rand<u8, 16>())
+Client::Client(const URI& uri, bool connect)
+    : http::Client(uri, connect ? http::ClientFlags::None : http::ClientFlags::NoConnect), key(rand<u8, 16>())
 {
-  doHandshake();
-
-  for (const auto& listener : onopen.callbacks) listener();
-
-  listenFuture = std::async(std::launch::async, &Client::listen, this);
-};
+  if (connect)
+    this->connect();
+}
 
 bool Client::send(const char* str) const noexcept { return send({.opcode = Opcode::Text, .payload = str}); }
 
@@ -25,12 +23,13 @@ bool Client::send(const Frame& frame) const noexcept
 {
   std::string data;
 
-  u8 header = 0;
-  header |= frame.fin << 7;
-  header |= frame.rsv1 << 6;
-  header |= frame.rsv2 << 5;
-  header |= frame.rsv3 << 4;
-  header |= static_cast<u8>(frame.opcode) & 0b00001111;
+  // clang-format off
+  u8 header = frame.fin << 7
+    | frame.rsv1 << 6
+    | frame.rsv2 << 5
+    | frame.rsv3 << 4
+    | (static_cast<u8>(frame.opcode) & 0b00001111);
+  // clang-format on
   data.push_back(header);
 
   u8 len = 0b10000000;  // 1st bit: mask
@@ -61,12 +60,17 @@ bool Client::send(const Frame& frame) const noexcept
   return sendAll(data);
 }
 
+void Client::connect()
+{
+  doHandshake();
+  onopen();
+  listenFuture = std::async(std::launch::async, &Client::listen, this);
+}
+
 void Client::close() noexcept
 {
-  listening.store(false, std::memory_order_relaxed);
-
+  listening = false;
   send({.opcode = Opcode::Close, .payload = {}});
-  recvFrame();
 }
 
 Frame Client::recvFrame() const
@@ -144,14 +148,14 @@ void Client::doHandshake()
 
 void Client::listen() noexcept
 {
-  listening.store(true, std::memory_order_relaxed);
+  listening = true;
 
-  while (listening.load(std::memory_order_relaxed)) {
+  while (listening) {
     Frame frame = recvFrame();
 
     switch (frame.opcode) {
     case Opcode::Close:
-      close();
+      onclose();
       break;
     case Opcode::Ping:
       send({.opcode = Opcode::Pong, .payload = frame.payload});
@@ -159,7 +163,7 @@ void Client::listen() noexcept
     case Opcode::Pong:
       break;
     default:
-      for (const auto& listener : onmessage.callbacks) listener(frame);
+      onmessage(frame);
       break;
     }
   }

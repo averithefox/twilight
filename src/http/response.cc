@@ -32,17 +32,17 @@ std::expected<Response, std::string> Response::parse(const std::string &raw) noe
   u16 statusCode = std::stoul(statusLine.substr(sp1 + 1, sp2 - sp1 - 1));
   std::string statusMessage = statusLine.substr(sp2 + 1);
 
-  std::expected<Headers, std::string> headers = Headers::parse(headerBlk.substr(statusLineEnd + 2));
+  auto headers = Headers::parse(headerBlk.substr(statusLineEnd + 2));
   if (!headers.has_value())
     return std::unexpected("Invalid header format");
 
   if (body.size()) {
-    if (std::optional<std::string> te = headers->get("transfer-encoding"); te.value_or("") == "chunked") {
+    if (auto te = headers->get("transfer-encoding"); te.value_or("") == "chunked") {
       body = decodeChunked(body);
     }
 
-    if (std::optional<std::string> ce = headers->get("content-encoding"); ce.has_value()) {
-      std::expected<std::string, std::string> decompressed = decompress(ce.value(), body);
+    if (auto ce = headers->get("content-encoding"); ce.has_value()) {
+      auto decompressed = decompress(ce.value(), body);
       if (!decompressed.has_value())
         return std::unexpected(decompressed.error());
       body = decompressed.value();
